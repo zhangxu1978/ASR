@@ -1,0 +1,5 @@
+.trae/
+webapp/output/
+webapp/uploads/
+sound
+*.safetensors

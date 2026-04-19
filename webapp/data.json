@@ -1,0 +1,17 @@
+[
+  {
+    "id": "6d83629e67d14dbfa5955524cc46ac34",
+    "name": "回声在草原上.mp3",
+    "duration": 0,
+    "size": 5576049,
+    "recognized": true,
+    "original_lyrics": "6d83629e67d14dbfa5955524cc46ac34_original.txt",
+    "timestamps_lyrics": "548cfef8.json",
+    "lrc_lyrics": "548cfef8.lrc",
+    "srt_lyrics": "548cfef8.srt",
+    "ai_corrected_srt": "6d83629e67d14dbfa5955524cc46ac34_ai.srt",
+    "ai_corrected_lrc": "548cfef8_ai.lrc",
+    "upload_time": "2026-04-07 10:48:57",
+    "file_path": "uploads\\6d83629e67d14dbfa5955524cc46ac34.mp3"
+  }
+]

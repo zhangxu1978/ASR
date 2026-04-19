@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音频文件管理 - Qwen3-ASR</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #00d4ff, #7c3aed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .subtitle {
+            color: #888;
+            font-size: 1.1em;
+        }
+        
+        .upload-section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 30px;
+            border: 2px dashed rgba(255, 255, 255, 0.1);
+            transition: all 0.3s;
+        }
+        
+        .upload-section:hover {
+            border-color: #00d4ff;
+            background: rgba(255, 255, 255, 0.08);
+        }
+        
+        .upload-area {
+            text-align: center;
+            cursor: pointer;
+        }
+        
+        .upload-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+        
+        .upload-text {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+        }
+        
+        .upload-hint {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        #fileInput {
+            display: none;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            align-items: center;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 30px;
+            border-radius: 10px;
+            border: none;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(90deg, #00d4ff, #7c3aed);
+            color: #fff;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 212, 255, 0.3);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        /* 状态显示 */
+        .status {
+            text-align: center;
+            padding: 20px;
+            margin-top: 20px;
+            border-radius: 10px;
+            display: none;
+        }
+        
+        .status.loading {
+            display: block;
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+        }
+        
+        .status.error {
+            display: block;
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid rgba(255, 0, 0, 0.3);
+            color: #ff6b6b;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* 文件列表 */
+        .file-list-section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 30px;
+            margin-top: 30px;
+        }
+        
+        .file-list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .file-list {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .file-list th,
+        .file-list td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .file-list th {
+            background: rgba(255, 255, 255, 0.05);
+            font-weight: 600;
+            color: #00d4ff;
+        }
+        
+        .file-list tr:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+        
+        .file-list td.actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.8em;
+        }
+        
+        .btn-danger {
+            background: rgba(255, 0, 0, 0.2);
+            color: #ff6b6b;
+            border: 1px solid rgba(255, 0, 0, 0.3);
+        }
+        
+        .btn-danger:hover {
+            background: rgba(255, 0, 0, 0.3);
+        }
+        
+        /* 链接样式 */
+        a {
+            color: #00d4ff;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        
+        a:hover {
+            color: #7c3aed;
+            text-decoration: underline;
+        }
+        
+        /* 响应式 */
+        @media (max-width: 1200px) {
+            .file-list th:nth-child(n+6),
+            .file-list td:nth-child(n+6) {
+                display: none;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8em;
+            }
+            
+            .upload-section {
+                padding: 20px;
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .file-list {
+                font-size: 0.9em;
+            }
+            
+            .file-list th,
+            .file-list td {
+                padding: 8px 10px;
+            }
+            
+            .file-list td.actions {
+                flex-direction: column;
+            }
+            
+            .file-list th:nth-child(n+4),
+            .file-list td:nth-child(n+4) {
+                display: none;
+            }
+        }
+        
+        /* 加载动画 */
+        @keyframes pulse {
+            0% {
+                opacity: 0.6;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0.6;
+            }
+        }
+        
+        .loading {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        /* 按钮悬停效果增强 */
+        .btn {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .btn:hover::before {
+            left: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎵 音频文件管理</h1>
+            <p class="subtitle">基于 Qwen3-ASR 的音频文件管理系统</p>
+        </header>
+        
+        <!-- 上传区域 -->
+        <div class="upload-section">
+            <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                <div class="upload-icon">🎤</div>
+                <div class="upload-text">点击上传音频文件</div>
+                <div class="upload-hint">支持 MP3, WAV, M4A, FLAC, OGG 等格式</div>
+            </div>
+            <input type="file" id="fileInput" accept="audio/*">
+            
+            <div class="controls">
+                <button class="btn btn-primary" id="uploadBtn" onclick="uploadFile()">
+                    <span>📤</span> 上传文件
+                </button>
+            </div>
+            
+            <div class="status" id="status"></div>
+        </div>
+        
+        <!-- 文件列表区域 -->
+        <div class="file-list-section">
+            <div class="file-list-header">
+                <h2>📁 文件列表</h2>
+                <button class="btn btn-secondary" onclick="refreshFileList()">
+                    <span>🔄</span> 刷新列表
+                </button>
+            </div>
+            
+            <table class="file-list" id="fileList">
+                <thead>
+                    <tr>
+                        <th style="display: none;">ID</th>
+                        <th>名称</th>
+                        <th>时长</th>
+                        <th>文件大小</th>
+                        <th>是否识别</th>
+                        <th>原始歌词</th>
+                        <th>时间戳歌词</th>
+                        <th>LRC歌词</th>
+                        <th>SRT歌词</th>
+                        <th>AI校对SRT</th>
+                        <th>AI校对LRC</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="fileListBody">
+                    <!-- 文件列表将通过JavaScript动态生成 -->
+                    <tr>
+                        <td colspan="12" style="text-align: center; color: #888;">加载中...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- 播放器模态框 -->
+    <div id="playerModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 1000; flex-direction: column; justify-content: center; align-items: center;" onclick="closePlayer()">
+        <div style="background: #1a1a2e; padding: 30px; border-radius: 20px; width: 90%; max-width: 600px;" onclick="event.stopPropagation()">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3>🎵 音频播放器</h3>
+                <button class="btn btn-secondary btn-sm" onclick="closePlayer()">关闭</button>
+            </div>
+            <audio id="audioPlayer" controls style="width: 100%; margin-bottom: 20px;"></audio>
+            <div id="playerFileName" style="text-align: center; margin-top: 10px;"></div>
+        </div>
+    </div>
+    
+    <!-- 歌词查看模态框 -->
+    <div id="lyricsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 1000; flex-direction: column; justify-content: center; align-items: center;" onclick="closeLyricsModal()">
+        <div style="background: #1a1a2e; padding: 30px; border-radius: 20px; width: 90%; max-width: 800px; max-height: 80vh; overflow-y: auto;" onclick="event.stopPropagation()">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 id="lyricsModalTitle">📄 歌词内容</h3>
+                <button class="btn btn-secondary btn-sm" onclick="closeLyricsModal()">关闭</button>
+            </div>
+            <div id="lyricsModalContent" style="background: rgba(0, 0, 0, 0.3); padding: 20px; border-radius: 10px; white-space: pre-wrap; color: #fff; line-height: 1.8;"></div>
+        </div>
+    </div>
+    
+    <script>
+        // 全局变量
+        let currentFile = null;
+        
+        // 文件选择
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                currentFile = file;
+                const statusEl = document.getElementById('status');
+                statusEl.className = 'status';
+                statusEl.innerHTML = `<span style="color: #00d4ff;">📁 已选择文件: ${file.name}</span>`;
+                statusEl.style.display = 'block';
+            }
+        });
+        
+        // 上传文件
+        async function uploadFile() {
+            if (!currentFile) {
+                alert('请先选择音频文件');
+                return;
+            }
+            
+            const statusEl = document.getElementById('status');
+            const btn = document.getElementById('uploadBtn');
+            
+            // 显示加载状态
+            statusEl.className = 'status loading';
+            statusEl.innerHTML = '<span class="spinner"></span>正在上传文件，请稍候...';
+            btn.disabled = true;
+            
+            const formData = new FormData();
+            formData.append('file', currentFile);
+            
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    statusEl.className = 'status';
+                    statusEl.innerHTML = `<span style="color: #4CAF50;">✅ 文件上传成功！</span>`;
+                    statusEl.style.display = 'block';
+                    
+                    // 刷新文件列表
+                    await refreshFileList();
+                } else {
+                    throw new Error(data.detail || '上传失败');
+                }
+            } catch (error) {
+                statusEl.className = 'status error';
+                statusEl.textContent = '❌ ' + error.message;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+        
+        // 刷新文件列表
+        async function refreshFileList() {
+            const tbody = document.getElementById('fileListBody');
+            tbody.innerHTML = '<tr><td colspan="12" style="text-align: center; color: #888;">加载中...</td></tr>';
+            
+            try {
+                const response = await fetch('/api/files');
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderFileList(data.files);
+                } else {
+                    throw new Error(data.detail || '获取文件列表失败');
+                }
+            } catch (error) {
+                tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; color: #ff6b6b;">❌ ${error.message}</td></tr>`;
+            }
+        }
+        
+        // 渲染文件列表
+        function renderFileList(files) {
+            const tbody = document.getElementById('fileListBody');
+            
+            if (files.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="12" style="text-align: center; color: #888;">暂无文件</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = '';
+            
+            files.forEach(file => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td style="display: none;">${file.id}</td>
+                    <td>${file.name}</td>
+                    <td>${formatDuration(file.duration)}</td>
+                    <td>${formatFileSize(file.size)}</td>
+                    <td>${file.recognized ? '<span style="color: #4CAF50;">✅</span>' : '<span style="color: #ff6b6b;">❌</span>'}</td>
+                    <td>${file.original_lyrics ? `<a href="javascript:void(0)" onclick="viewLyrics('${file.id}', 'original', '${file.original_lyrics}')">📄</a>` : '-'}</td>
+                    <td>${file.timestamps_lyrics ? `<a href="javascript:void(0)" onclick="viewLyrics('${file.id}', 'timestamps', '${file.timestamps_lyrics}')">⏰</a>` : '-'}</td>
+                    <td>${file.lrc_lyrics ? `<a href="javascript:void(0)" onclick="viewLyrics('${file.id}', 'lrc', '${file.lrc_lyrics}')">🎵</a>` : '-'}</td>
+                    <td>${file.srt_lyrics ? `<a href="javascript:void(0)" onclick="viewLyrics('${file.id}', 'srt', '${file.srt_lyrics}')">📺</a>` : '-'}</td>
+                    <td>${file.ai_corrected_srt ? `<a href="javascript:void(0)" onclick="viewLyrics('${file.id}', 'ai_srt', '${file.ai_corrected_srt}')">🤖</a>` : '-'}</td>
+                    <td>${file.ai_corrected_lrc ? `<a href="javascript:void(0)" onclick="viewLyrics('${file.id}', 'ai_lrc', '${file.ai_corrected_lrc}')">🤖</a>` : '-'}</td>
+                    <td class="actions">
+                        <button class="btn btn-secondary btn-sm" onclick="playAudio('${file.id}', '${file.name}')">
+                            ▶️ 播放
+                        </button>
+                        <button class="btn btn-primary btn-sm" onclick="recognizeLyrics('${file.id}')">
+                            🎵 识别
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="uploadOriginalLyrics('${file.id}')">
+                            📤 上传歌词
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="aiCorrect('${file.id}')">
+                            🤖 校对
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="compareLyrics('${file.id}')">
+                            📊 对比
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteFile('${file.id}')">
+                            🗑️ 删除
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        
+        // 格式化时长
+        function formatDuration(seconds) {
+            if (!seconds) return '-';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+        
+        // 格式化文件大小
+        function formatFileSize(bytes) {
+            if (!bytes) return '-';
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+        }
+        
+        // 播放音频
+        function playAudio(fileId, fileName) {
+            const modal = document.getElementById('playerModal');
+            const audioPlayer = document.getElementById('audioPlayer');
+            const playerFileName = document.getElementById('playerFileName');
+            
+            audioPlayer.src = `/api/audio/${fileId}`;
+            playerFileName.textContent = fileName;
+            
+            modal.style.display = 'flex';
+            
+            // 自动播放
+            audioPlayer.play().catch(e => console.error('播放失败:', e));
+        }
+        
+        // 关闭播放器
+        function closePlayer() {
+            const modal = document.getElementById('playerModal');
+            const audioPlayer = document.getElementById('audioPlayer');
+            
+            audioPlayer.pause();
+            audioPlayer.src = '';
+            modal.style.display = 'none';
+        }
+        
+        // 查看歌词
+        async function viewLyrics(fileId, type, filename) {
+            const modal = document.getElementById('lyricsModal');
+            const titleEl = document.getElementById('lyricsModalTitle');
+            const contentEl = document.getElementById('lyricsModalContent');
+            
+            // 设置标题
+            const titles = {
+                'original': '📄 原始歌词',
+                'timestamps': '⏰ 时间戳歌词',
+                'lrc': '🎵 LRC歌词',
+                'srt': '📺 SRT歌词',
+                'ai_srt': '🤖 AI校对SRT',
+                'ai_lrc': '🤖 AI校对LRC'
+            };
+            titleEl.textContent = titles[type] || '📄 歌词内容';
+            
+            // 显示加载中
+            contentEl.textContent = '加载中...';
+            modal.style.display = 'flex';
+            
+            try {
+                const response = await fetch(`/download/${filename}`);
+                const content = await response.text();
+                contentEl.textContent = content;
+            } catch (error) {
+                contentEl.textContent = '加载失败: ' + error.message;
+            }
+        }
+        
+        // 关闭歌词模态框
+        function closeLyricsModal() {
+            const modal = document.getElementById('lyricsModal');
+            modal.style.display = 'none';
+        }
+        
+        // 识别歌词
+        async function recognizeLyrics(fileId) {
+            const statusEl = document.getElementById('status');
+            statusEl.className = 'status loading';
+            statusEl.innerHTML = '<span class="spinner"></span>正在识别歌词，请稍候...';
+            statusEl.style.display = 'block';
+            
+            try {
+                const response = await fetch(`/api/recognize/${fileId}`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    statusEl.className = 'status';
+                    statusEl.innerHTML = '<span style="color: #4CAF50;">✅ 歌词识别成功！</span>';
+                    statusEl.style.display = 'block';
+                    await refreshFileList();
+                } else {
+                    throw new Error(data.detail || '识别失败');
+                }
+            } catch (error) {
+                statusEl.className = 'status error';
+                statusEl.textContent = '❌ ' + error.message;
+            }
+        }
+        
+        // 上传原始歌词
+        function uploadOriginalLyrics(fileId) {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.txt,.lrc,.srt';
+            input.onchange = async function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const statusEl = document.getElementById('status');
+                    statusEl.className = 'status loading';
+                    statusEl.innerHTML = '<span class="spinner"></span>正在上传歌词，请稍候...';
+                    statusEl.style.display = 'block';
+                    
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    
+                    try {
+                        const response = await fetch(`/api/upload-lyrics/${fileId}`, {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            statusEl.className = 'status';
+                            statusEl.innerHTML = '<span style="color: #4CAF50;">✅ 歌词上传成功！</span>';
+                            statusEl.style.display = 'block';
+                            await refreshFileList();
+                        } else {
+                            throw new Error(data.detail || '上传失败');
+                        }
+                    } catch (error) {
+                        statusEl.className = 'status error';
+                        statusEl.textContent = '❌ ' + error.message;
+                    }
+                }
+            };
+            input.click();
+        }
+        
+        // AI校对
+        async function aiCorrect(fileId) {
+            // 先检查是否有原始歌词
+            const response = await fetch('/api/files');
+            const data = await response.json();
+            const files = data.files || [];
+            const file = files.find(f => f.id === fileId);
+            
+            if (!file || !file.original_lyrics) {
+                alert('请先上传原始歌词！');
+                return;
+            }
+            
+            // 让用户选择校对类型
+            const choice = confirm('请选择校对类型：\n\n点击"确定"校对SRT歌词\n点击"取消"校对LRC歌词');
+            const correctType = choice ? 'srt' : 'lrc';
+            
+            const statusEl = document.getElementById('status');
+            statusEl.className = 'status loading';
+            statusEl.innerHTML = `<span class="spinner"></span>正在AI校对${correctType.toUpperCase()}歌词，请稍候...`;
+            statusEl.style.display = 'block';
+            
+            try {
+                const response = await fetch(`/api/ai-correct/${fileId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        type: correctType
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    statusEl.className = 'status';
+                    statusEl.innerHTML = '<span style="color: #4CAF50;">✅ AI校对完成！</span>';
+                    statusEl.style.display = 'block';
+                    await refreshFileList();
+                } else {
+                    throw new Error(data.detail || '校对失败');
+                }
+            } catch (error) {
+                statusEl.className = 'status error';
+                statusEl.textContent = '❌ ' + error.message;
+            }
+        }
+        
+        // 对比歌词
+        function compareLyrics(fileId) {
+            window.open(`/compare/${fileId}`, '_blank');
+        }
+        
+        // 删除文件
+        async function deleteFile(fileId) {
+            if (!confirm('确定要删除这个文件吗？')) {
+                return;
+            }
+            
+            const statusEl = document.getElementById('status');
+            statusEl.className = 'status loading';
+            statusEl.innerHTML = '<span class="spinner"></span>正在删除文件，请稍候...';
+            statusEl.style.display = 'block';
+            
+            try {
+                const response = await fetch(`/api/files/${fileId}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    statusEl.className = 'status';
+                    statusEl.innerHTML = '<span style="color: #4CAF50;">✅ 文件删除成功！</span>';
+                    statusEl.style.display = 'block';
+                    await refreshFileList();
+                } else {
+                    throw new Error(data.detail || '删除失败');
+                }
+            } catch (error) {
+                statusEl.className = 'status error';
+                statusEl.textContent = '❌ ' + error.message;
+            }
+        }
+        
+        // 初始化
+        window.onload = function() {
+            refreshFileList();
+        };
+    </script>
+</body>
+</html>
