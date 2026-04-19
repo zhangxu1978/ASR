@@ -1,4 +1,3 @@
-from sqlalchemy import false
 """
 歌词识别API服务
 基于 Qwen3-ASR 的歌曲歌词识别后端
@@ -126,51 +125,46 @@ async def generate_lyrics(
     language: str = "Chinese"
 ):
     """
-    上传歌曲文件，生成歌词
-    
+    上传歌曲文件，生成歌词（完整版，生成LRC、SRT、JSON）
+
     Args:
         file: 音频文件 (mp3, wav, m4a, flac 等)
         language: 语言 (Chinese, English 等)
-    
+
     Returns:
         JSON: 包含歌词信息和下载链接
     """
-    # 验证文件类型
     allowed_extensions = {'mp3', 'wav', 'm4a', 'flac', 'ogg', 'aac', 'wma'}
     file_ext = file.filename.split('.')[-1].lower() if file.filename else ''
-    
+
     if file_ext not in allowed_extensions:
         raise HTTPException(
             status_code=400,
             detail=f"不支持的文件格式: {file_ext}。支持的格式: {', '.join(allowed_extensions)}"
         )
-    
-    # 生成唯一文件名
+
     file_id = uuid.uuid4().hex
     upload_path = UPLOAD_DIR / f"{file_id}.{file_ext}"
-    
-    # 保存上传的文件
+
     try:
         contents = await file.read()
         with open(upload_path, "wb") as f:
             f.write(contents)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"文件保存失败: {str(e)}")
-    
-    # 生成歌词
+
     generator = get_generator()
     result = generator.generate_lyrics(
         audio_path=str(upload_path),
         output_dir=str(OUTPUT_DIR),
         language=language
     )
-    
-    # 清理上传的文件
+
     try:
         os.remove(upload_path)
     except:
         pass
-    
+
     if result['success']:
         return JSONResponse({
             'success': True,
@@ -187,6 +181,214 @@ async def generate_lyrics(
         raise HTTPException(
             status_code=500,
             detail=f"歌词生成失败: {result.get('error', '未知错误')}"
+        )
+
+@app.post("/api/lyrics-json/{file_id}")
+async def recognize_for_edit(
+    file_id: str
+):
+    """
+    识别歌词用于校对（只生成JSON，不生成LRC/SRT）
+
+    Args:
+        file_id: 文件ID
+
+    Returns:
+        JSON: 包含歌词JSON数据和句子分组
+    """
+    file_info = data_manager.get_file(file_id)
+    if not file_info:
+        raise HTTPException(status_code=404, detail="文件不存在")
+
+    file_path = BASE_DIR / file_info['file_path']
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="文件不存在")
+
+    generator = get_generator()
+    result = generator.generate_lyrics_json(
+        audio_path=str(file_path),
+        output_dir=str(OUTPUT_DIR),
+        language="Chinese"
+    )
+
+    if result['success']:
+        updates = {
+            'recognized': True,
+            'timestamps_lyrics': result['json_url'].replace('/download/', ''),
+            'lrc_lyrics': None,
+            'srt_lyrics': None
+        }
+        data_manager.update_file(file_id, updates)
+
+        return JSONResponse({
+            'success': True,
+            'file_id': result['file_id'],
+            'text': result['text'],
+            'sentences': result['sentences'],
+            'timestamps': result['timestamps'],
+            'json_url': result['json_url']
+        })
+    else:
+        raise HTTPException(
+            status_code=500,
+            detail=f"歌词识别失败: {result.get('error', '未知错误')}"
+        )
+
+@app.post("/api/export-lyrics/{file_id}")
+async def export_lyrics(
+    file_id: str,
+    request: Request
+):
+    """
+    从JSON歌词导出LRC/SRT格式
+
+    Args:
+        file_id: 文件ID
+        request: 请求对象，包含格式类型
+
+    Returns:
+        JSON: 导出结果
+    """
+    file_info = data_manager.get_file(file_id)
+    if not file_info:
+        raise HTTPException(status_code=404, detail="文件不存在")
+
+    try:
+        body = await request.json()
+        export_format = body.get('format', 'lrc')
+    except:
+        export_format = 'lrc'
+
+    json_path = OUTPUT_DIR / file_info['timestamps_lyrics']
+    if not json_path.exists():
+        raise HTTPException(status_code=404, detail="歌词JSON文件不存在")
+
+    with open(json_path, 'r', encoding='utf-8') as f:
+        json_data = json.load(f)
+
+    sentences = json_data.get('lyrics', [])
+
+    if export_format == 'lrc':
+        content = _generate_lrc_from_json(sentences)
+        filename = f"{file_id}.lrc"
+    else:
+        content = _generate_srt_from_json(sentences)
+        filename = f"{file_id}.srt"
+
+    output_path = OUTPUT_DIR / filename
+    with open(output_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+    updates = {}
+    if export_format == 'lrc':
+        updates['lrc_lyrics'] = filename
+    else:
+        updates['srt_lyrics'] = filename
+    data_manager.update_file(file_id, updates)
+
+    return JSONResponse({
+        'success': True,
+        'message': f'{export_format.upper()}导出成功',
+        'url': f"/download/{filename}"
+    })
+
+def _generate_lrc_from_json(sentences: list) -> str:
+    """从JSON数据生成LRC格式"""
+    lines = []
+    lines.append("[ti:自动生成歌词]")
+    lines.append("[ar:未知]")
+    lines.append("[al:未知]")
+    lines.append("[by:Qwen3-ASR]")
+    lines.append("")
+
+    for item in sentences:
+        start = item['start']
+        text = item.get('text', item.get('word', ''))
+        if not text:
+            continue
+        minutes = int(start // 60)
+        seconds = start % 60
+        time_str = f"{minutes:02d}:{seconds:05.2f}"
+        lines.append(f"[{time_str}]{text}")
+
+    return '\n'.join(lines)
+
+def _generate_srt_from_json(sentences: list) -> str:
+    """从JSON数据生成SRT格式"""
+    lines = []
+    index = 1
+
+    for item in sentences:
+        start = item['start']
+        end = item.get('end', start + 3)
+        text = item.get('text', item.get('word', ''))
+        if not text:
+            continue
+
+        start_str = _format_srt_time(start)
+        end_str = _format_srt_time(end)
+        lines.append(str(index))
+        lines.append(f"{start_str} --> {end_str}")
+        lines.append(text)
+        lines.append("")
+        index += 1
+
+    return '\n'.join(lines)
+
+def _format_srt_time(seconds: float) -> str:
+    """格式化SRT时间"""
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    secs = int(seconds % 60)
+    millis = int((seconds % 1) * 1000)
+    return f"{hours:02d}:{minutes:02d}:{secs:02d},{millis:03d}"
+
+@app.post("/api/save-lyrics/{file_id}")
+async def save_lyrics(file_id: str, request: Request):
+    """
+    保存修改后的歌词JSON
+
+    Args:
+        file_id: 文件ID
+        request: 请求对象，包含歌词内容
+
+    Returns:
+        JSON: 保存结果
+    """
+    file_info = data_manager.get_file(file_id)
+    if not file_info:
+        raise HTTPException(status_code=404, detail="文件不存在")
+
+    try:
+        body = await request.json()
+        lyrics_content = body.get('lyrics')
+    except:
+        raise HTTPException(status_code=400, detail="请求参数错误")
+
+    if not lyrics_content:
+        raise HTTPException(status_code=400, detail="歌词内容不能为空")
+
+    filename = file_info.get('timestamps_lyrics', f"{file_id}.json")
+    output_path = OUTPUT_DIR / filename
+
+    json_data = {
+        'lyrics': lyrics_content,
+        'full_text': ''.join(item.get('text', item.get('word', '')) for item in lyrics_content)
+    }
+
+    try:
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(json_data, f, ensure_ascii=False, indent=2)
+
+        return JSONResponse({
+            'success': True,
+            'message': '歌词保存成功',
+            'json_url': f"/download/{filename}"
+        })
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"歌词保存失败: {str(e)}"
         )
 
 @app.post("/api/upload")
@@ -625,66 +827,6 @@ async def status():
 async def health_check():
     """健康检查"""
     return {"status": "ok"}
-
-@app.post("/api/save-lyrics/{file_id}")
-async def save_lyrics(file_id: str, request: Request):
-    """
-    保存修改后的歌词
-    
-    Args:
-        file_id: 文件ID
-        request: 请求对象，包含歌词内容和格式
-    
-    Returns:
-        JSON: 保存结果
-    """
-    # 获取文件信息
-    file_info = data_manager.get_file(file_id)
-    if not file_info:
-        raise HTTPException(status_code=404, detail="文件不存在")
-    
-    # 解析请求参数
-    try:
-        body = await request.json()
-        lyrics_content = body.get('content')
-        format_type = body.get('format', 'srt')
-    except:
-        raise HTTPException(status_code=400, detail="请求参数错误")
-    
-    if not lyrics_content:
-        raise HTTPException(status_code=400, detail="歌词内容不能为空")
-    
-    # 确定文件名
-    if format_type == 'srt':
-        filename = file_info.get('srt_lyrics', f"{file_id}.srt")
-    else:
-        filename = file_info.get('lrc_lyrics', f"{file_id}.lrc")
-    
-    # 保存歌词文件
-    output_path = OUTPUT_DIR / filename
-    try:
-        with open(output_path, 'w', encoding='utf-8') as f:
-            f.write(lyrics_content)
-        
-        # 更新文件信息
-        updates = {}
-        if format_type == 'srt':
-            updates['srt_lyrics'] = filename
-        else:
-            updates['lrc_lyrics'] = filename
-        
-        data_manager.update_file(file_id, updates)
-        
-        return JSONResponse({
-            'success': True,
-            'message': '歌词保存成功'
-        })
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"歌词保存失败: {str(e)}"
-        )
-
 
 if __name__ == "__main__":
     import uvicorn

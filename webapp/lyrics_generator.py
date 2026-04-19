@@ -8,6 +8,7 @@ import uuid
 import traceback
 import gc
 import torch
+from pathlib import Path
 from qwen_asr import Qwen3ASRModel, Qwen3ForcedAligner
 
 
@@ -63,55 +64,104 @@ class LyricsGenerator:
             self._models_loaded = False
             print("模型已卸载，内存已释放!")
     
-    def generate_lyrics(self, audio_path: str, output_dir: str, language: str = "Chinese") -> dict:
+    def generate_lyrics_json(self, audio_path: str, output_dir: str, language: str = "Chinese") -> dict:
         """
-        生成歌词文件
-        
+        生成歌词JSON数据（不生成LRC和SRT）
+
         Args:
             audio_path: 音频文件路径
             output_dir: 输出目录
             language: 语言 (Chinese, English 等)
-        
+
         Returns:
-            dict: 包含生成结果的字典
+            dict: 包含歌词JSON数据和分组句子
         """
-        # 确保输出目录存在
         os.makedirs(output_dir, exist_ok=True)
-        
-        # 生成唯一ID
         file_id = uuid.uuid4().hex[:8]
-        
-        # 输出文件路径
-        lrc_path = os.path.join(output_dir, f"{file_id}.lrc")
-        srt_path = os.path.join(output_dir, f"{file_id}.srt")
         json_path = os.path.join(output_dir, f"{file_id}.json")
-        
-        # 加载模型
+
         self._load_models()
-        
+
         try:
-            # 第一步：识别歌词文本
             print("识别歌词文本...")
             asr_result = self.asr_model.transcribe(
                 audio=audio_path,
                 language=language
             )
             recognized_text = asr_result[0].text
-            
-            # 第二步：对齐时间戳
+
             print("对齐时间戳...")
             align_result = self.aligner.align(
                 audio=audio_path,
                 text=recognized_text,
                 language=language
             )[0]
-            
-            # 第三步：生成歌词文件
+
+            self._export_json(align_result, json_path)
+            sentences = self._get_sentences(align_result)
+
+            result = {
+                'success': True,
+                'file_id': file_id,
+                'text': recognized_text,
+                'json_path': json_path,
+                'json_url': f"/download/{file_id}.json",
+                'timestamps': self._get_timestamps_list(align_result),
+                'sentences': sentences
+            }
+
+            self._unload_models()
+            return result
+
+        except Exception as e:
+            self._unload_models()
+            return {
+                'success': False,
+                'error': str(e),
+                'traceback': traceback.format_exc()
+            }
+
+    def generate_lyrics(self, audio_path: str, output_dir: str, language: str = "Chinese") -> dict:
+        """
+        生成歌词文件（完整版，包含LRC、SRT、JSON）
+
+        Args:
+            audio_path: 音频文件路径
+            output_dir: 输出目录
+            language: 语言 (Chinese, English 等)
+
+        Returns:
+            dict: 包含生成结果的字典
+        """
+        os.makedirs(output_dir, exist_ok=True)
+        file_id = uuid.uuid4().hex[:8]
+
+        lrc_path = os.path.join(output_dir, f"{file_id}.lrc")
+        srt_path = os.path.join(output_dir, f"{file_id}.srt")
+        json_path = os.path.join(output_dir, f"{file_id}.json")
+
+        self._load_models()
+
+        try:
+            print("识别歌词文本...")
+            asr_result = self.asr_model.transcribe(
+                audio=audio_path,
+                language=language
+            )
+            recognized_text = asr_result[0].text
+
+            print("对齐时间戳...")
+            align_result = self.aligner.align(
+                audio=audio_path,
+                text=recognized_text,
+                language=language
+            )[0]
+
             print("生成歌词文件...")
             self._export_lrc(align_result, lrc_path)
             self._export_srt(align_result, srt_path)
             self._export_json(align_result, json_path)
-            
+
             result = {
                 'success': True,
                 'file_id': file_id,
@@ -124,14 +174,11 @@ class LyricsGenerator:
                 'json_url': f"/download/{file_id}.json",
                 'timestamps': self._get_timestamps_list(align_result)
             }
-            
-            # 识别完成后立即释放模型
+
             self._unload_models()
-            
             return result
-            
+
         except Exception as e:
-            # 即使出错也要释放内存
             self._unload_models()
             return {
                 'success': False,
@@ -149,6 +196,37 @@ class LyricsGenerator:
                 'end': item.end_time
             })
         return timestamps
+
+    def _get_sentences(self, align_result) -> list:
+        """获取按句子分组的歌词"""
+        sentences = []
+        current_line = ""
+        line_start = 0
+        line_end = 0
+
+        for item in align_result.items:
+            word = item.text
+            if not current_line:
+                line_start = item.start_time
+            current_line += word
+            line_end = item.end_time
+
+            if word in ['。', '，', '！', '？', '、'] or len(current_line) >= 15:
+                sentences.append({
+                    'text': current_line,
+                    'start': round(line_start, 2),
+                    'end': round(line_end, 2)
+                })
+                current_line = ""
+
+        if current_line:
+            sentences.append({
+                'text': current_line,
+                'start': round(line_start, 2),
+                'end': round(line_end, 2)
+            })
+
+        return sentences
     
     def _export_lrc(self, align_result, output_path: str):
         """导出 LRC 格式"""
@@ -271,7 +349,8 @@ def get_generator() -> LyricsGenerator:
     """获取歌词生成器实例"""
     global _generator
     if _generator is None:
-        asr_path = r"D:\work\work\git\tools\ASR\Qwen3-ASR-0.6B"
-        aligner_path = r"D:\work\work\git\tools\ASR\Qwen3-ForcedAligner-0.6B"
+        base_dir = Path(__file__).parent.parent
+        asr_path = str(base_dir / "Qwen3-ASR-0.6B")
+        aligner_path = str(base_dir / "Qwen3-ForcedAligner-0.6B")
         _generator = LyricsGenerator(asr_path, aligner_path)
     return _generator

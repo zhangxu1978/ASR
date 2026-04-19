@@ -3,3 +3,4 @@ webapp/output/
 webapp/uploads/
 sound
 *.safetensors
+webapp/__pycache__/lyrics_generator.cpython-310.pyc
