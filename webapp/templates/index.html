@@ -18,10 +18,152 @@
             color: #fff;
         }
 
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 320px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            overflow-y: auto;
+        }
+
+        .sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-header h2 {
+            font-size: 1.2em;
+            color: #00d4ff;
+        }
+
+        .refresh-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+
+        .refresh-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .file-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .file-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 1px solid transparent;
+        }
+
+        .file-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(0, 212, 255, 0.3);
+        }
+
+        .file-item.active {
+            background: rgba(0, 212, 255, 0.15);
+            border-color: #00d4ff;
+        }
+
+        .file-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .file-name {
+            font-size: 0.95em;
+            font-weight: bold;
+            color: #fff;
+            word-break: break-all;
+            flex: 1;
+        }
+
+        .file-status {
+            font-size: 0.75em;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: 8px;
+        }
+
+        .file-status.exists {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+
+        .file-status.missing {
+            background: rgba(255, 0, 0, 0.2);
+            color: #ff6b6b;
+        }
+
+        .file-meta {
+            font-size: 0.8em;
+            color: #888;
+            margin-bottom: 8px;
+        }
+
+        .file-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .file-action-btn {
+            flex: 1;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: none;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .file-action-btn.load {
+            background: rgba(0, 212, 255, 0.2);
+            color: #00d4ff;
+        }
+
+        .file-action-btn.load:hover {
+            background: rgba(0, 212, 255, 0.4);
+        }
+
+        .file-action-btn.delete {
+            background: rgba(255, 0, 0, 0.2);
+            color: #ff6b6b;
+        }
+
+        .file-action-btn.delete:hover {
+            background: rgba(255, 0, 0, 0.4);
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+        }
+
         .container {
             max-width: 1000px;
             margin: 0 auto;
-            padding: 40px 20px;
         }
 
         header {
@@ -250,14 +392,31 @@
 
         .lyrics-container {
             position: relative;
-            max-height: 400px;
+            max-height: 500px;
             overflow-y: auto;
             padding: 20px;
             background: rgba(0, 0, 0, 0.2);
             border-radius: 10px;
         }
 
+        .timeline {
+            position: relative;
+            margin-bottom: 30px;
+            padding-left: 60px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 25px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, #00d4ff, #7c3aed);
+        }
+
         .lyrics-line {
+            position: relative;
             padding: 12px 15px;
             margin: 8px 0;
             border-radius: 8px;
@@ -267,6 +426,19 @@
             display: flex;
             align-items: center;
             gap: 15px;
+        }
+
+        .lyrics-line::before {
+            content: '';
+            position: absolute;
+            left: -45px;
+            top: 20px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #00d4ff;
+            border: 3px solid rgba(0, 212, 255, 0.3);
+            z-index: 1;
         }
 
         .lyrics-line:hover {
@@ -281,10 +453,16 @@
             font-weight: bold;
         }
 
+        .lyrics-line.active::before {
+            background: #7c3aed;
+            box-shadow: 0 0 15px rgba(124, 58, 237, 0.6);
+        }
+
         .lyrics-line .time {
             font-size: 0.85em;
             color: #666;
-            min-width: 60px;
+            min-width: 80px;
+            font-family: monospace;
         }
 
         .lyrics-line.active .time {
@@ -366,7 +544,22 @@
             border-radius: 3px;
         }
 
-        @media (max-width: 600px) {
+        @media (max-width: 768px) {
+            .app-container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                max-height: 200px;
+                border-right: none;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            }
+
+            .main-content {
+                padding: 20px;
+            }
+
             h1 {
                 font-size: 1.8em;
             }
@@ -397,11 +590,23 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>🎵 歌词识别</h1>
-            <p class="subtitle">基于 Qwen3-ASR 的智能歌词识别 · 先校对后导出</p>
-        </header>
+    <div class="app-container">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>📁 文件列表</h2>
+                <button class="refresh-btn" onclick="loadFileList()">🔄 刷新</button>
+            </div>
+            <div class="file-list" id="fileList">
+                <div style="text-align: center; color: #888; padding: 20px;">加载中...</div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="container">
+                <header>
+                    <h1>🎵 歌词识别</h1>
+                    <p class="subtitle">基于 Qwen3-ASR 的智能歌词识别 · 先校对后导出</p>
+                </header>
 
         <div class="upload-section">
             <div class="upload-area" onclick="document.getElementById('fileInput').click()">
@@ -460,6 +665,156 @@
         let lyricsData = [];
         let modifiedCount = 0;
         let isModified = false;
+        let fileListData = [];
+
+        async function loadFileList() {
+            try {
+                const response = await fetch('/api/files');
+                const data = await response.json();
+
+                if (data.success) {
+                    fileListData = data.files;
+                    renderFileList();
+                }
+            } catch (error) {
+                console.error('加载文件列表失败:', error);
+                document.getElementById('fileList').innerHTML =
+                    '<div style="text-align: center; color: #ff6b6b; padding: 20px;">加载失败</div>';
+            }
+        }
+
+        function renderFileList() {
+            const container = document.getElementById('fileList');
+
+            if (fileListData.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">暂无文件</div>';
+                return;
+            }
+
+            container.innerHTML = fileListData.map(file => {
+                const fileExists = file.file_path && file.file_path_exists;
+                const statusClass = fileExists ? 'exists' : 'missing';
+                const statusText = fileExists ? '正常' : '缺失';
+                const recognizedClass = file.recognized ? '✓ 已识别' : '○ 未识别';
+
+                return `
+                    <div class="file-item ${file.id === currentFileId ? 'active' : ''}" data-id="${file.id}">
+                        <div class="file-item-header">
+                            <span class="file-name">${escapeHtml(file.name)}</span>
+                            <span class="file-status ${statusClass}">${statusText}</span>
+                        </div>
+                        <div class="file-meta">
+                            ${formatFileSize(file.size)} · ${recognizedClass}
+                        </div>
+                        <div class="file-actions">
+                            <button class="file-action-btn load" onclick="loadFile('${file.id}')">📂 载入</button>
+                            <button class="file-action-btn delete" onclick="deleteFile('${file.id}')">🗑 删除</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function formatFileSize(bytes) {
+            if (!bytes) return '未知大小';
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        async function loadFile(fileId) {
+            const file = fileListData.find(f => f.id === fileId);
+            if (!file) {
+                alert('文件不存在');
+                return;
+            }
+
+            if (!file.file_path_exists) {
+                alert('音频文件已丢失，无法加载');
+                return;
+            }
+
+            currentFileId = fileId;
+
+            document.getElementById('fileName').textContent = `📁 ${file.name}`;
+            document.getElementById('audioPlayer').src = `/api/audio/${fileId}`;
+
+            document.getElementById('resultSection').classList.add('show');
+
+            if (file.recognized && file.timestamps_lyrics) {
+                try {
+                    const response = await fetch(`/download/${file.timestamps_lyrics}`);
+                    const jsonData = await response.json();
+
+                    lyricsData = jsonData.lyrics || [];
+                    modifiedCount = 0;
+                    isModified = false;
+
+                    renderLyrics(lyricsData);
+                    updateLyricsInfo();
+
+                    document.getElementById('saveBtn').disabled = true;
+                    document.getElementById('exportLrcBtn').disabled = false;
+                    document.getElementById('exportSrtBtn').disabled = false;
+                    document.getElementById('recognizeBtn').disabled = true;
+
+                    document.getElementById('status').className = 'status success';
+                    document.getElementById('status').textContent = '✅ 已加载历史识别结果，可直接编辑或导出';
+                } catch (error) {
+                    console.error('加载歌词失败:', error);
+                    lyricsData = [];
+                    renderLyrics([]);
+                    document.getElementById('recognizeBtn').disabled = false;
+                    document.getElementById('status').className = 'status error';
+                    document.getElementById('status').textContent = '⚠ 歌词文件加载失败，需重新识别';
+                }
+            } else {
+                lyricsData = [];
+                renderLyrics([]);
+                document.getElementById('recognizeBtn').disabled = false;
+                document.getElementById('saveBtn').disabled = true;
+                document.getElementById('exportLrcBtn').disabled = true;
+                document.getElementById('exportSrtBtn').disabled = true;
+                document.getElementById('status').className = 'status';
+                document.getElementById('status').style.display = 'none';
+            }
+
+            document.getElementById('audioPlayer').ontimeupdate = updateLyricsHighlight;
+            renderFileList();
+        }
+
+        async function deleteFile(fileId) {
+            if (!confirm('确定要删除这个文件吗？所有关联的歌词文件也会被删除！')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/files/${fileId}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    if (currentFileId === fileId) {
+                        currentFileId = null;
+                        currentFile = null;
+                        lyricsData = [];
+                        renderLyrics([]);
+                        document.getElementById('resultSection').classList.remove('show');
+                    }
+                    loadFileList();
+                } else {
+                    throw new Error(data.detail || '删除失败');
+                }
+            } catch (error) {
+                alert('删除失败: ' + error.message);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFileList();
+        });
 
         document.getElementById('fileInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
@@ -505,6 +860,7 @@
 
                     document.getElementById('audioPlayer').src = URL.createObjectURL(currentFile);
                     document.getElementById('resultSection').classList.add('show');
+                    loadFileList();
                 } else {
                     throw new Error(data.detail || '上传失败');
                 }
@@ -560,6 +916,7 @@
                     statusEl.textContent = '✅ 歌词识别成功！点击歌词可直接编辑';
 
                     document.getElementById('audioPlayer').ontimeupdate = updateLyricsHighlight;
+                    loadFileList();
                 } else {
                     throw new Error(data.detail || '识别失败');
                 }
@@ -573,7 +930,8 @@
 
         function renderLyrics(sentences) {
             const container = document.getElementById('lyricsContainer');
-            container.innerHTML = '';
+            container.innerHTML = '<div class="timeline"></div>';
+            const timeline = container.querySelector('.timeline');
 
             sentences.forEach((item, index) => {
                 const div = document.createElement('div');
@@ -587,7 +945,7 @@
 
                 div.innerHTML = `
                     <span class="index">${index + 1}</span>
-                    <span class="time">[${timeStr}]</span>
+                    <span class="time">${timeStr}</span>
                     <input type="text" class="text" value="${escapeHtml(item.text)}" />
                     <span class="save-indicator">✓ 已修改</span>
                 `;
@@ -613,7 +971,7 @@
                     }
                 });
 
-                container.appendChild(div);
+                timeline.appendChild(div);
             });
         }
 
@@ -776,7 +1134,8 @@
         function formatTime(seconds) {
             const mins = Math.floor(seconds / 60);
             const secs = Math.floor(seconds % 60);
-            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            const ms = Math.floor((seconds % 1) * 100);
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
         }
 
         function escapeHtml(text) {

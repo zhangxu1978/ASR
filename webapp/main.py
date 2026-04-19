@@ -459,11 +459,16 @@ async def upload_file(
 async def get_files():
     """
     获取所有文件列表
-    
+
     Returns:
         JSON: 文件列表
     """
     files = data_manager.get_all_files()
+    for file in files:
+        if file.get('file_path'):
+            file['file_path_exists'] = (BASE_DIR / file['file_path']).exists()
+        else:
+            file['file_path_exists'] = False
     return JSONResponse({
         'success': True,
         'files': files
@@ -473,36 +478,31 @@ async def get_files():
 async def delete_file(file_id: str):
     """
     删除文件
-    
+
     Args:
         file_id: 文件ID
-    
+
     Returns:
         JSON: 删除结果
     """
-    # 获取文件信息
     file_info = data_manager.get_file(file_id)
     if not file_info:
         raise HTTPException(status_code=404, detail="文件不存在")
-    
-    # 删除文件
+
     try:
-        # 删除音频文件
         if 'file_path' in file_info and file_info['file_path']:
             file_path = BASE_DIR / file_info['file_path']
             if file_path.exists():
                 os.remove(file_path)
-        
-        # 删除歌词文件
+
         for key in ['original_lyrics', 'timestamps_lyrics', 'lrc_lyrics', 'srt_lyrics', 'ai_corrected_srt', 'ai_corrected_lrc']:
             if key in file_info and file_info[key]:
-                file_path = BASE_DIR / file_info[key]
+                file_path = OUTPUT_DIR / file_info[key]
                 if file_path.exists():
                     os.remove(file_path)
-        
-        # 从数据中删除
+
         data_manager.delete_file(file_id)
-        
+
         return JSONResponse({
             'success': True,
             'message': '文件删除成功'

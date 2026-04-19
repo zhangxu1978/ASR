@@ -198,34 +198,16 @@ class LyricsGenerator:
         return timestamps
 
     def _get_sentences(self, align_result) -> list:
-        """获取按句子分组的歌词"""
+        """获取按单词分组的歌词（更细的颗粒度）"""
         sentences = []
-        current_line = ""
-        line_start = 0
-        line_end = 0
-
+        
         for item in align_result.items:
-            word = item.text
-            if not current_line:
-                line_start = item.start_time
-            current_line += word
-            line_end = item.end_time
-
-            if word in ['。', '，', '！', '？', '、'] or len(current_line) >= 15:
-                sentences.append({
-                    'text': current_line,
-                    'start': round(line_start, 2),
-                    'end': round(line_end, 2)
-                })
-                current_line = ""
-
-        if current_line:
             sentences.append({
-                'text': current_line,
-                'start': round(line_start, 2),
-                'end': round(line_end, 2)
+                'text': item.text,
+                'start': round(item.start_time, 2),
+                'end': round(item.end_time, 2)
             })
-
+        
         return sentences
     
     def _export_lrc(self, align_result, output_path: str):
